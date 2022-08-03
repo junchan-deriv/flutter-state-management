@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
-import 'counter_cubit.dart';
+import 'package:state_management_dude/calculator.dart';
+import 'package:state_management_dude/result_page.dart';
 
 void main() {
   runApp(
-    const MyApp(),
+    BlocProvider(
+      create: (ctx) => CalculatorBloc(),
+      child: const MyApp(),
+    ),
   );
 }
 
@@ -18,11 +22,11 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: "Chicken",
-      theme: ThemeData(primarySwatch: Colors.orange),
-      home: BlocProvider(
-        create: (context) => CounterCubit(),
-        child: const MyHomePage(),
+      theme: ThemeData(
+        primarySwatch: Colors.orange,
       ),
+      routes: {ResultPage.route: (_) => const ResultPage()},
+      home: const MyHomePage(),
     );
   }
 }
@@ -35,12 +39,19 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  late CounterCubit cubit;
-
+  late CalculatorBloc cubit;
+  final TextEditingController _controller = TextEditingController(text: "0");
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    cubit = BlocProvider.of<CounterCubit>(context);
+    cubit = BlocProvider.of<CalculatorBloc>(context);
+    _controller.text = cubit.state.operand.toString();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _controller.dispose();
   }
 
   @override
@@ -50,48 +61,82 @@ class _MyHomePageState extends State<MyHomePage> {
         title: const Text("Home"),
         centerTitle: true,
       ),
-      body: BlocConsumer<CounterCubit, int>(
-        listener: (context, state) {
-          const snackBar = SnackBar(content: Text("State is reached"));
-          if (state > 0 && state % 5 == 0) {
-            ScaffoldMessenger.of(context)
-              ..clearSnackBars()
-              ..showSnackBar(snackBar);
-          }
-        },
+      body: BlocBuilder<CalculatorBloc, CalculatorState>(
         builder: (context, state) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  "$state",
-                  style: const TextStyle(fontSize: 100),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    ElevatedButton(
-                      onPressed: () {
-                        cubit.increment();
-                      },
-                      child: const Text("Increment"),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        cubit.decrement();
-                      },
-                      child: const Text("Decrement"),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        cubit.reset();
-                      },
-                      child: const Text("Reset"),
-                    ),
-                  ],
-                )
-              ],
+          return DefaultTextStyle(
+            style: const TextStyle(fontSize: 30, color: Colors.black),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  Wrap(
+                    children: [
+                      TextField(
+                        controller: _controller,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          FilteringTextInputFormatter.singleLineFormatter,
+                        ],
+                        textAlign: TextAlign.center,
+                      ),
+                      Center(
+                        child: Text(
+                          "${state.counter}",
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () {
+                          cubit.add(
+                              const ChangeCounterOps(CounterOps.increment));
+                        },
+                        child: const Text("+"),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          cubit.add(
+                              const ChangeCounterOps(CounterOps.decrement));
+                        },
+                        child: const Text("-"),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          cubit.add(const ChangeCounterOps(CounterOps.reset));
+                        },
+                        child: const Text("0"),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () {
+                          cubit.add(SetOperandOps(
+                              int.tryParse(_controller.text) ?? 0));
+                          Navigator.of(context).pushNamed(ResultPage.route,
+                              arguments: CalculationOps.multiply);
+                        },
+                        child: const Text("x"),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          cubit.add(SetOperandOps(
+                              int.tryParse(_controller.text) ?? 0));
+                          Navigator.of(context).pushNamed(ResultPage.route,
+                              arguments: CalculationOps.divide);
+                        },
+                        child: const Text("÷"),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           );
         },
